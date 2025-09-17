@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import styled from "styled-components";
 import { theme } from "../styles/theme";
+import type { Difficulty } from "../types/game";
 
 const Wrap = styled.div`
   position: relative;
@@ -27,7 +28,7 @@ const Canvas = styled.canvas.attrs({ tabIndex: 0 })`
 const HUD = styled.div`
   position: absolute;
   inset: 0;
-  pointer-events: none; /* HUD ignores clicks by default */
+  pointer-events: none;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -44,11 +45,8 @@ const Pill = styled.div`
 `;
 
 const Palette = styled.div`
-  /* keep it purely visual */
   pointer-events: none;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  display: flex; gap: 8px; align-items: center;
   background: ${({ theme }) => theme.colors.hudBg};
   border: 1px solid ${({ theme }) => theme.colors.hudBorder};
   border-radius: ${({ theme }) => theme.radii.pill};
@@ -66,7 +64,28 @@ const Swatch = styled.span<{ active: boolean; color: string }>`
 
 type Ob = { x: number; color: number; w: number; h: number; hit: boolean };
 
-export default function GameCanvas({ onGameOver }: { onGameOver: (score: number) => void }) {
+const SPEED_BASE = 4;
+const STEP_NORMAL = 0.6; // per 5 points
+const STEP_HARD = 0.35;  // per 1 point
+
+function speedFor(score: number, difficulty: Difficulty): number {
+  switch (difficulty) {
+    case "easy":
+      return SPEED_BASE;
+    case "normal":
+      return SPEED_BASE + Math.floor(score / 5) * STEP_NORMAL;
+    case "hard":
+      return SPEED_BASE + score * STEP_HARD;
+  }
+}
+
+export default function GameCanvas({
+  onGameOver,
+  difficulty,
+}: {
+  onGameOver: (score: number) => void;
+  difficulty: Difficulty;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [score, setScore] = useState(0);
   const [colorIndex, setColorIndex] = useState(0);
@@ -82,7 +101,6 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
     setColorIndex(i);
   }, []);
 
-  // Device pixel density
   const setup = useCallback(() => {
     const c = canvasRef.current!;
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
@@ -121,7 +139,6 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
     const playerX = 120;
     const playerY = 320;
     const playerR = 34;
-    const speedBase = 4;
 
     // Parallax particles
     const stars = Array.from({ length: 60 }, () => ({
@@ -135,17 +152,16 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
       if (!running.current) return;
       frame++;
 
-      // Clear
       ctx.clearRect(0, 0, 720, 420);
 
-      // Vignette overlay
+      // Vignette
       const grd = ctx.createRadialGradient(360, 60, 30, 360, 210, 520);
       grd.addColorStop(0, "rgba(255,255,255,0.06)");
       grd.addColorStop(1, "rgba(0,0,0,0.9)");
       ctx.fillStyle = grd;
       ctx.fillRect(0, 0, 720, 420);
 
-      // Parallax stars
+      // Stars
       ctx.save();
       ctx.globalAlpha = 0.6;
       stars.forEach((s) => {
@@ -161,7 +177,7 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
       });
       ctx.restore();
 
-      // Player glow + ring
+      // Player
       const pColor = theme.colors.player[colorIndexRef.current];
       ctx.save();
       ctx.shadowColor = pColor + "99";
@@ -170,7 +186,6 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
       ctx.beginPath();
       ctx.arc(playerX, playerY, playerR, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.lineWidth = 6;
       ctx.strokeStyle = "#ffffffaa";
       ctx.shadowBlur = 0;
@@ -179,8 +194,8 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
       ctx.stroke();
       ctx.restore();
 
-      // Spawn obstacles
-      const spawnEvery = Math.max(60, 110 - Math.floor(scoreRef.current * 0.6));
+      // Spawn
+      const spawnEvery = 90; // constant spawn cadence
       if (frame % spawnEvery === 0) {
         obstacles.current.push({
           x: 720 + 24,
@@ -191,13 +206,14 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
         });
       }
 
-      // Move + draw obstacles
-      const speed = speedBase + Math.min(6, scoreRef.current * 0.03);
+      // Speed from difficulty
+      const speed = speedFor(scoreRef.current, difficulty);
+
+      // Obstacles
       for (let i = obstacles.current.length - 1; i >= 0; i--) {
         const obs = obstacles.current[i];
         obs.x -= speed;
 
-        // Shape
         ctx.save();
         const c = theme.colors.obstacle[obs.color];
         ctx.shadowColor = c + "66";
@@ -205,10 +221,9 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
         drawRoundedRect(ctx, obs.x, playerY - obs.h / 2, obs.w, obs.h, 10);
         ctx.fillStyle = c;
         ctx.fill();
-        ctx.shadowBlur = 0;
-        // inner highlight
         ctx.lineWidth = 2;
         ctx.strokeStyle = "#ffffff55";
+        ctx.shadowBlur = 0;
         ctx.stroke();
         ctx.restore();
 
@@ -229,6 +244,9 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
             cancelAnimationFrame(raf.current);
             onGameOver(scoreRef.current);
             return;
+            // obs.hit = true;
+            // scoreRef.current += 1;
+            // setScore(scoreRef.current);
           }
           if (!obs.hit) {
             obs.hit = true;
@@ -237,11 +255,10 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
           }
         }
 
-        // Cleanup
         if (rectR < -60) obstacles.current.splice(i, 1);
       }
 
-      // Subtle ground line
+      // Ground line
       ctx.globalAlpha = 0.2;
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, playerY + playerR + 18, 720, 2);
@@ -275,7 +292,7 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
       canvas.removeEventListener("keydown", handleKey);
       canvas.removeEventListener("click", handleClick);
     };
-  }, [onGameOver, setup, setActiveColor]);
+  }, [onGameOver, setup, setActiveColor, difficulty]);
 
   return (
     <Wrap>
@@ -283,6 +300,9 @@ export default function GameCanvas({ onGameOver }: { onGameOver: (score: number)
       <HUD>
         <Pill>
           Score: <strong style={{ marginLeft: 6 }}>{score}</strong>
+          <span style={{ marginLeft: 10, opacity: 0.75, fontSize: 12, textTransform: "capitalize" }}>
+            {difficulty}
+          </span>
         </Pill>
         <Palette aria-hidden="true">
           {theme.colors.player.map((c, i) => (
