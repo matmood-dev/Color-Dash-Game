@@ -14,7 +14,6 @@ const Wrap = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.hudBorder};
   box-shadow: ${({ theme }) => theme.shadows.xl};
   backdrop-filter: blur(8px);
-  /* safe areas */
   padding-left: max(12px, env(safe-area-inset-left));
   padding-right: max(12px, env(safe-area-inset-right));
 `;
@@ -22,7 +21,7 @@ const Wrap = styled.div`
 const Canvas = styled.canvas.attrs({ tabIndex: 0 })`
   display: block;
   width: 100%;
-  height: auto; /* keep aspect based on width/height attrs */
+  height: auto;
   border-radius: 12px;
   background: transparent;
   cursor: pointer;
@@ -30,19 +29,13 @@ const Canvas = styled.canvas.attrs({ tabIndex: 0 })`
 `;
 
 const HUD = styled.div`
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: flex-start; justify-content: space-between;
   padding: clamp(8px, 3vw, 14px);
   font-variant-numeric: tabular-nums;
 
   @media (max-width: 520px) {
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
+    flex-direction: column; gap: 8px; align-items: stretch;
   }
 `;
 
@@ -52,44 +45,30 @@ const Pill = styled.div`
   border-radius: ${({ theme }) => theme.radii.pill};
   padding: 8px 12px;
   backdrop-filter: blur(8px);
-  @media (max-width: 520px) {
-    align-self: flex-start;
-  }
+  @media (max-width: 520px) { align-self: flex-start; }
 `;
 
 const Palette = styled.div`
   pointer-events: none;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  display: flex; gap: 8px; align-items: center;
   background: ${({ theme }) => theme.colors.hudBg};
   border: 1px solid ${({ theme }) => theme.colors.hudBorder};
   border-radius: ${({ theme }) => theme.radii.pill};
   padding: 6px 8px;
   backdrop-filter: blur(8px);
-  @media (max-width: 520px) {
-    align-self: flex-start;
-  }
+  @media (max-width: 520px) { align-self: flex-start; }
 `;
 
 const Swatch = styled.span<{ active: boolean; color: string }>`
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 24px; height: 24px; border-radius: 50%;
   display: inline-block;
-  border: 2px solid
-    ${({ active }) => (active ? "#fff" : "rgba(255,255,255,.35)")};
+  border: 2px solid ${({ active }) => (active ? "#fff" : "rgba(255,255,255,.35)")};
   background: ${({ color }) => color};
-  box-shadow: ${({ active, color }) =>
-    active ? `0 0 18px ${color}99` : "none"};
-
-  @media (min-width: 520px) {
-    width: 28px;
-    height: 28px;
-  }
+  box-shadow: ${({ active, color }) => (active ? `0 0 18px ${color}99` : "none")};
+  @media (min-width: 520px) { width: 28px; height: 28px; }
 `;
 
-type Ob = { x: number; color: number; w: number; h: number; hit: boolean };
+type Ob = { x: number; y: number; color: number; w: number; h: number; hit: boolean };
 
 const SPEED_BASE = 4;
 const STEP_NORMAL = 0.6;
@@ -97,12 +76,9 @@ const STEP_HARD = 0.35;
 
 function baseSpeedFor(score: number, difficulty: Difficulty): number {
   switch (difficulty) {
-    case "easy":
-      return SPEED_BASE;
-    case "normal":
-      return SPEED_BASE + Math.floor(score / 5) * STEP_NORMAL;
-    case "hard":
-      return SPEED_BASE + score * STEP_HARD;
+    case "easy":   return SPEED_BASE;
+    case "normal": return SPEED_BASE + Math.floor(score / 5) * STEP_NORMAL;
+    case "hard":   return SPEED_BASE + score * STEP_HARD;
   }
 }
 
@@ -123,29 +99,32 @@ export default function GameCanvas({
   const running = useRef(true);
   const scoreRef = useRef(0);
 
-  const dimRef = useRef({ w: 720, h: 420, dpr: 1 });
-  const AR = 420 / 720;
+  // dynamic dims (CSS px)
+  const dimRef = useRef({ w: 720, h: 420, dpr: 1, portrait: false });
+  const AR_LAND = 420 / 720; // ~0.583
+  const AR_PORT = 16 / 9;    // ~1.778
 
   const setActiveColor = useCallback((i: number) => {
     colorIndexRef.current = i;
     setColorIndex(i);
   }, []);
 
+  const isPortraitViewport = () => window.innerHeight > window.innerWidth * 1.05;
+
+  // Resize + DPR-aware buffer sizing
   const setup = useCallback(() => {
     const c = canvasRef.current!;
     const rect = c.getBoundingClientRect();
-    const cssW = Math.max(280, Math.round(rect.width));
-    const cssH = Math.round(cssW * AR);
-    const dpr = Math.min(
-      2,
-      Math.max(1, Math.floor(window.devicePixelRatio || 1))
-    );
+    const portrait = isPortraitViewport();
 
-    dimRef.current = { w: cssW, h: cssH, dpr };
+    const cssW = Math.max(280, Math.round(rect.width));
+    const cssH = Math.round(cssW * (portrait ? AR_PORT : AR_LAND));
+    const dpr = Math.min(2, Math.max(1, Math.floor(window.devicePixelRatio || 1)));
+
+    dimRef.current = { w: cssW, h: cssH, dpr, portrait };
 
     c.width = cssW * dpr;
     c.height = cssH * dpr;
-
     c.style.width = cssW + "px";
     c.style.height = cssH + "px";
 
@@ -167,11 +146,7 @@ export default function GameCanvas({
 
   const drawRoundedRect = (
     ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    r = 10
+    x: number, y: number, w: number, h: number, r = 10
   ) => {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -187,38 +162,29 @@ export default function GameCanvas({
     setup();
     const ctx = canvas.getContext("2d")!;
     let frame = 0;
-
     let stars = makeStars();
 
     const loop = () => {
       if (!running.current) return;
       frame++;
 
-      const { w: W, h: H } = dimRef.current;
+      const { w: W, h: H, portrait } = dimRef.current;
 
       ctx.clearRect(0, 0, W, H);
 
-      const grd = ctx.createRadialGradient(
-        W * 0.5,
-        H * 0.14,
-        30,
-        W * 0.5,
-        H * 0.5,
-        Math.max(W, H)
-      );
+      // vignette
+      const grd = ctx.createRadialGradient(W * 0.5, H * 0.14, 30, W * 0.5, H * 0.5, Math.max(W, H));
       grd.addColorStop(0, "rgba(255,255,255,0.06)");
       grd.addColorStop(1, "rgba(0,0,0,0.9)");
       ctx.fillStyle = grd;
       ctx.fillRect(0, 0, W, H);
 
+      // stars
       ctx.save();
       ctx.globalAlpha = 0.6;
       stars.forEach((s) => {
         s.x -= s.v;
-        if (s.x < -2) {
-          s.x = W + 2;
-          s.y = Math.random() * H;
-        }
+        if (s.x < -2) { s.x = W + 2; s.y = Math.random() * H; }
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(255,255,255,0.6)";
@@ -226,9 +192,10 @@ export default function GameCanvas({
       });
       ctx.restore();
 
-      const playerX = W * 0.17;
-      const playerY = H * 0.76;
-      const playerR = Math.max(16, H * 0.081);
+      // player
+      const playerX = portrait ? W * 0.5  : W * 0.17;
+      const playerY = portrait ? H * 0.82 : H * 0.76;
+      const playerR = Math.max(16, (portrait ? H : H) * 0.081);
 
       const pColor = theme.colors.player[colorIndexRef.current];
       ctx.save();
@@ -242,46 +209,36 @@ export default function GameCanvas({
       ctx.strokeStyle = "#ffffffaa";
       ctx.shadowBlur = 0;
       ctx.beginPath();
-      ctx.arc(
-        playerX,
-        playerY,
-        playerR + Math.max(3, playerR * 0.18),
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(playerX, playerY, playerR + Math.max(3, playerR * 0.18), 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
 
-      const spawnEvery = 90;
+      // spawn
+      const spawnEvery = 90; // consistent
       if (frame % spawnEvery === 0) {
-        obstacles.current.push({
-          x: W + 24,
-          color: Math.floor(Math.random() * theme.colors.obstacle.length),
-          w: Math.max(28, W * 0.064),
-          h: Math.max(60, H * 0.205),
-          hit: false,
-        });
+        const w = Math.max(28, (portrait ? W : W) * 0.064);
+        const h = Math.max(60, (portrait ? H : H) * 0.205);
+        obstacles.current.push(
+          portrait
+            ? { x: playerX - w / 2, y: -h - 10, color: Math.floor(Math.random() * theme.colors.obstacle.length), w, h, hit: false }
+            : { x: W + 24,         y: playerY - h / 2, color: Math.floor(Math.random() * theme.colors.obstacle.length), w, h, hit: false }
+        );
       }
 
-      const speedScale = Math.max(1, W / 720); 
+      // speed (never slower than desktop)
+      const speedScale = Math.max(1, Math.max(W / 720, H / 420));
       const speed = baseSpeedFor(scoreRef.current, difficulty) * speedScale;
 
+      // obstacles
       for (let i = obstacles.current.length - 1; i >= 0; i--) {
         const obs = obstacles.current[i];
-        obs.x -= speed;
+        if (portrait) obs.y += speed; else obs.x -= speed;
 
         ctx.save();
         const c = theme.colors.obstacle[obs.color];
         ctx.shadowColor = c + "66";
         ctx.shadowBlur = 14;
-        drawRoundedRect(
-          ctx,
-          obs.x,
-          playerY - obs.h / 2,
-          obs.w,
-          obs.h,
-          Math.max(8, W * 0.012)
-        );
+        drawRoundedRect(ctx, obs.x, obs.y, obs.w, obs.h, Math.max(8, W * 0.012));
         ctx.fillStyle = c;
         ctx.fill();
         ctx.lineWidth = 2;
@@ -290,10 +247,11 @@ export default function GameCanvas({
         ctx.stroke();
         ctx.restore();
 
+        // collision
         const rectL = obs.x;
         const rectR = obs.x + obs.w;
-        const rectT = playerY - obs.h / 2;
-        const rectB = playerY + obs.h / 2;
+        const rectT = obs.y;
+        const rectB = obs.y + obs.h;
         const closestX = Math.max(rectL, Math.min(playerX, rectR));
         const closestY = Math.max(rectT, Math.min(playerY, rectB));
         const dx = playerX - closestX;
@@ -314,12 +272,17 @@ export default function GameCanvas({
           }
         }
 
-        if (rectR < -60) obstacles.current.splice(i, 1);
+        // cleanup
+        if ((!portrait && rectR < -60) || (portrait && rectT > H + 60)) {
+          obstacles.current.splice(i, 1);
+        }
       }
 
+      // ground/guide line
       ctx.globalAlpha = 0.2;
       ctx.fillStyle = "#fff";
-      ctx.fillRect(0, playerY + playerR + H * 0.03, W, 2);
+      if (portrait) ctx.fillRect(0, playerY + playerR + H * 0.03, W, 2);
+      else          ctx.fillRect(0, playerY + playerR + H * 0.03, W, 2);
       ctx.globalAlpha = 1;
 
       raf.current = requestAnimationFrame(loop);
@@ -328,12 +291,11 @@ export default function GameCanvas({
     running.current = true;
     raf.current = requestAnimationFrame(loop);
 
+    // controls
     const handleKey = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
-        setActiveColor(
-          (colorIndexRef.current + 1) % theme.colors.player.length
-        );
+        setActiveColor((colorIndexRef.current + 1) % theme.colors.player.length);
       }
     };
     const handleClick = () => {
@@ -341,12 +303,14 @@ export default function GameCanvas({
       canvas.focus();
     };
 
+    // resize/orientation
     const handleResize = () => {
       setup();
       stars = makeStars();
-      const { w: W } = dimRef.current;
-      obstacles.current.forEach((o) => {
-        if (o.x > W + 40) o.x = W + 40;
+      const { w: W, h: H, portrait } = dimRef.current;
+      obstacles.current.forEach(o => {
+        if (portrait) { if (o.y < -H) o.y = -H; }
+        else          { if (o.x > W + 40) o.x = W + 40; }
       });
     };
 
@@ -373,14 +337,7 @@ export default function GameCanvas({
       <HUD>
         <Pill>
           Score: <strong style={{ marginLeft: 6 }}>{score}</strong>
-          <span
-            style={{
-              marginLeft: 10,
-              opacity: 0.75,
-              fontSize: 12,
-              textTransform: "capitalize",
-            }}
-          >
+          <span style={{ marginLeft: 10, opacity: 0.75, fontSize: 12, textTransform: "capitalize" }}>
             {difficulty}
           </span>
         </Pill>
@@ -388,9 +345,7 @@ export default function GameCanvas({
           {theme.colors.player.map((c, i) => (
             <Swatch key={c} color={c} active={i === colorIndex} />
           ))}
-          <span
-            style={{ color: theme.colors.subtext, marginLeft: 8, fontSize: 12 }}
-          >
+          <span style={{ color: theme.colors.subtext, marginLeft: 8, fontSize: 12 }}>
             Space / Tap canvas
           </span>
         </Palette>
