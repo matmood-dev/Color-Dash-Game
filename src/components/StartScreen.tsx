@@ -21,7 +21,6 @@ const Card = styled.div`
   backdrop-filter: blur(10px);
   overflow: hidden;
 
-  /* soft glow ring */
   &::before {
     content: "";
     position: absolute;
