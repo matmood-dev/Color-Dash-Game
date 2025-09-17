@@ -338,7 +338,7 @@ export default function GameCanvas({
         <Pill>
           Score: <strong style={{ marginLeft: 6 }}>{score}</strong>
           <span style={{ marginLeft: 10, opacity: 0.75, fontSize: 12, textTransform: "capitalize" }}>
-            {difficulty}
+            {difficulty.toUpperCase()}
           </span>
         </Pill>
         <Palette aria-hidden="true">

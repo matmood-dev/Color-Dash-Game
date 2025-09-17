@@ -1,6 +1,16 @@
 import styled from "styled-components";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { Difficulty } from "../types/game";
+
+const STORAGE_KEY = "color-dash:difficulty";
+const DIFFS: Difficulty[] = ["easy", "normal", "hard"];
+
+function readSaved(): Difficulty | null {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY) as Difficulty | null;
+    return v && (DIFFS as string[]).includes(v) ? v : null;
+  } catch { return null; }
+}
 
 const Wrapper = styled.div`
   min-height: 100vh;
@@ -20,7 +30,6 @@ const Card = styled.div`
   box-shadow: ${({ theme }) => theme.shadows.xl};
   backdrop-filter: blur(10px);
   overflow: hidden;
-
   &::before {
     content: "";
     position: absolute;
@@ -28,11 +37,7 @@ const Card = styled.div`
     border-radius: inherit;
     background: conic-gradient(
       from 120deg,
-      #60a5fa33,
-      #22d3ee33,
-      #f59e0b33,
-      #ef444433,
-      #60a5fa33
+      #60a5fa33, #22d3ee33, #f59e0b33, #ef444433, #60a5fa33
     );
     filter: blur(18px);
     z-index: -1;
@@ -72,18 +77,10 @@ const SegBtn = styled.button<{ active: boolean }>`
   font-weight: 700;
   letter-spacing: .2px;
   text-transform: capitalize;
-
   color: ${({ active }) => (active ? "#fff" : "rgba(255,255,255,.82)")};
   background: ${({ active }) => (active ? "rgba(255,255,255,.10)" : "transparent")};
-
-  &:not(:last-child) {
-    border-right: 1px solid rgba(255,255,255,.12);
-  }
-
-  &:focus-visible {
-    outline: 2px solid #ffffffaa;
-    outline-offset: -2px;
-  }
+  &:not(:last-child){ border-right:1px solid rgba(255,255,255,.12); }
+  &:focus-visible { outline: 2px solid #ffffffaa; outline-offset: -2px; }
 `;
 
 const SegHint = styled.div`
@@ -102,7 +99,6 @@ const Button = styled.button`
   font-size: 18px;
   cursor: pointer;
   transition: transform .08s ease, box-shadow .15s ease;
-
   &:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
   &:active { transform: translateY(0); }
 `;
@@ -135,7 +131,12 @@ const Chip = styled.span`
 type Props = { onStart: (difficulty: Difficulty) => void };
 
 export default function StartScreen({ onStart }: Props) {
-  const [diff, setDiff] = useState<Difficulty>("normal");
+  const [diff, setDiff] = useState<Difficulty>(() => readSaved() ?? "normal");
+
+  // persist on change
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, diff); } catch {}
+  }, [diff]);
 
   const labels = useMemo(
     () => ({
@@ -147,10 +148,14 @@ export default function StartScreen({ onStart }: Props) {
   );
 
   const cycle = useCallback((dir: 1 | -1) => {
-    const order: Difficulty[] = ["easy", "normal", "hard"];
-    const idx = order.indexOf(diff);
-    setDiff(order[(idx + dir + order.length) % order.length]);
+    const idx = DIFFS.indexOf(diff);
+    setDiff(DIFFS[(idx + dir + DIFFS.length) % DIFFS.length]);
   }, [diff]);
+
+  const handleStart = useCallback(() => {
+    try { localStorage.setItem(STORAGE_KEY, diff); } catch {}
+    onStart(diff);
+  }, [diff, onStart]);
 
   return (
     <Wrapper>
@@ -165,10 +170,10 @@ export default function StartScreen({ onStart }: Props) {
           onKeyDown={(e) => {
             if (e.key === "ArrowRight") { e.preventDefault(); cycle(1); }
             if (e.key === "ArrowLeft")  { e.preventDefault(); cycle(-1); }
-            if (e.key === "Enter")      { e.preventDefault(); onStart(diff); }
+            if (e.key === "Enter")      { e.preventDefault(); handleStart(); }
           }}
         >
-          {(["easy","normal","hard"] as Difficulty[]).map(d => (
+          {DIFFS.map(d => (
             <SegBtn
               key={d}
               active={diff === d}
@@ -193,7 +198,7 @@ export default function StartScreen({ onStart }: Props) {
           <Chip>Enter to start</Chip>
         </Chips>
 
-        <Button onClick={() => onStart(diff)}>Play</Button>
+        <Button onClick={handleStart}>Play</Button>
 
         <div style={{ marginTop: 8 }}>
           <Credit
