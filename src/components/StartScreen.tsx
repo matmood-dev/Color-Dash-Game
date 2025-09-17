@@ -1,8 +1,15 @@
 import styled from "styled-components";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+} from "react";
+import type { ComponentType } from "react";
 import type { Difficulty } from "../types/game";
 import { Leaf, Gauge, Fire, Palette } from "@phosphor-icons/react";
 import type { IconProps } from "@phosphor-icons/react";
+import type {} from "react";
 
 const STORAGE_KEY = "color-dash:difficulty";
 const DIFFS: Difficulty[] = ["easy", "normal", "hard"];
@@ -62,13 +69,11 @@ const Title = styled.h1`
   align-items: center;
   gap: 10px;
 
-  /* gradient text for the label */
   background: linear-gradient(90deg, #fff, #cbd5e1 55%, #9ca3af);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 
-  /* keep the icon solid white */
   svg {
     color: #fff;
     filter: drop-shadow(0 2px 10px rgba(255, 255, 255, 0.08));
@@ -149,8 +154,8 @@ const Credit = styled.a`
 
 type Props = { onStart: (difficulty: Difficulty) => void };
 
-// icon map
-type IconComp = (props: IconProps) => JSX.Element;
+type IconComp = ComponentType<IconProps>;
+
 const icons: Record<Difficulty, IconComp> = {
   easy: Leaf,
   normal: Gauge,
@@ -163,7 +168,9 @@ export default function StartScreen({ onStart }: Props) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, diff);
-    } catch {}
+    } catch {
+      //
+    }
   }, [diff]);
 
   const labels = useMemo(
@@ -186,7 +193,9 @@ export default function StartScreen({ onStart }: Props) {
   const handleStart = useCallback(() => {
     try {
       localStorage.setItem(STORAGE_KEY, diff);
-    } catch {}
+    } catch {
+      //
+    }
     onStart(diff);
   }, [diff, onStart]);
 

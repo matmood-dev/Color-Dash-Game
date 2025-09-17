@@ -1,18 +1,21 @@
-export const theme = {
+import type { DefaultTheme } from "styled-components";
+
+export const theme: DefaultTheme = {
   colors: {
-    bg: "#0a0b0f",
+    bg: "#0d0d0d",
     bgGradient:
-      "radial-gradient(90% 120% at 50% -10%, #1f2937 0%, #0b1020 45%, #06080f 70%, #000 100%)",
-    hudBg: "rgba(255,255,255,.06)",
-    hudBorder: "rgba(255,255,255,.14)",
-    text: "#e5e7eb",
-    subtext: "#9ca3af",
-    glow: "rgba(255,255,255,.35)",
-    player: ["#ff5563", "#09ff00ff", "#22d3ee", "#f59e0b"],
-    obstacle: ["#ff5563", "#15ff00ff", "#22d3ee", "#f59e0b"],
+      "radial-gradient(1200px circle at 50% -20%, #0b1220 0%, #0b0f1a 35%, #07090f 100%)",
+    text: "#ffffff",
+    subtext: "#94a3b8",
+    hudBg: "rgba(15,23,42,0.60)",      
+    hudBorder: "rgba(148,163,184,0.18)",
+    player: ["#e63946", "#09ff00ff", "#00ccffff", "#f4a261"],
+    obstacle: ["#e63946", "#09ff00ff", "#00ccffff", "#f4a261"],
+  },
+  radii: { lg: "16px", pill: "999px" },
+  shadows: {
+    xl: "0 30px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
   },
   font:
-    "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-  radii: { lg: "16px", pill: "999px" },
-  shadows: { xl: "0 20px 60px rgba(0,0,0,.45)" },
+    'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"',
 };

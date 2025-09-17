@@ -99,10 +99,9 @@ export default function GameCanvas({
   const running = useRef(true);
   const scoreRef = useRef(0);
 
-  // dynamic dims (CSS px)
   const dimRef = useRef({ w: 720, h: 420, dpr: 1, portrait: false });
-  const AR_LAND = 420 / 720; // ~0.583
-  const AR_PORT = 16 / 9;    // ~1.778
+  const AR_LAND = 420 / 720; 
+  const AR_PORT = 16 / 9; 
 
   const setActiveColor = useCallback((i: number) => {
     colorIndexRef.current = i;
@@ -111,7 +110,6 @@ export default function GameCanvas({
 
   const isPortraitViewport = () => window.innerHeight > window.innerWidth * 1.05;
 
-  // Resize + DPR-aware buffer sizing
   const setup = useCallback(() => {
     const c = canvasRef.current!;
     const rect = c.getBoundingClientRect();
@@ -172,14 +170,12 @@ export default function GameCanvas({
 
       ctx.clearRect(0, 0, W, H);
 
-      // vignette
       const grd = ctx.createRadialGradient(W * 0.5, H * 0.14, 30, W * 0.5, H * 0.5, Math.max(W, H));
       grd.addColorStop(0, "rgba(255,255,255,0.06)");
       grd.addColorStop(1, "rgba(0,0,0,0.9)");
       ctx.fillStyle = grd;
       ctx.fillRect(0, 0, W, H);
 
-      // stars
       ctx.save();
       ctx.globalAlpha = 0.6;
       stars.forEach((s) => {
@@ -192,7 +188,6 @@ export default function GameCanvas({
       });
       ctx.restore();
 
-      // player
       const playerX = portrait ? W * 0.5  : W * 0.17;
       const playerY = portrait ? H * 0.82 : H * 0.76;
       const playerR = Math.max(16, (portrait ? H : H) * 0.081);
@@ -213,8 +208,7 @@ export default function GameCanvas({
       ctx.stroke();
       ctx.restore();
 
-      // spawn
-      const spawnEvery = 90; // consistent
+      const spawnEvery = 90;
       if (frame % spawnEvery === 0) {
         const w = Math.max(28, (portrait ? W : W) * 0.064);
         const h = Math.max(60, (portrait ? H : H) * 0.205);
@@ -225,11 +219,9 @@ export default function GameCanvas({
         );
       }
 
-      // speed (never slower than desktop)
       const speedScale = Math.max(1, Math.max(W / 720, H / 420));
       const speed = baseSpeedFor(scoreRef.current, difficulty) * speedScale;
 
-      // obstacles
       for (let i = obstacles.current.length - 1; i >= 0; i--) {
         const obs = obstacles.current[i];
         if (portrait) obs.y += speed; else obs.x -= speed;
@@ -247,7 +239,6 @@ export default function GameCanvas({
         ctx.stroke();
         ctx.restore();
 
-        // collision
         const rectL = obs.x;
         const rectR = obs.x + obs.w;
         const rectT = obs.y;
@@ -272,13 +263,11 @@ export default function GameCanvas({
           }
         }
 
-        // cleanup
         if ((!portrait && rectR < -60) || (portrait && rectT > H + 60)) {
           obstacles.current.splice(i, 1);
         }
       }
 
-      // ground/guide line
       ctx.globalAlpha = 0.2;
       ctx.fillStyle = "#fff";
       if (portrait) ctx.fillRect(0, playerY + playerR + H * 0.03, W, 2);
@@ -291,7 +280,6 @@ export default function GameCanvas({
     running.current = true;
     raf.current = requestAnimationFrame(loop);
 
-    // controls
     const handleKey = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
@@ -303,7 +291,6 @@ export default function GameCanvas({
       canvas.focus();
     };
 
-    // resize/orientation
     const handleResize = () => {
       setup();
       stars = makeStars();
